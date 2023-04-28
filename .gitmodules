@@ -1,0 +1,6 @@
+[submodule "gitbook"]
+	path = gitbook
+	url = git@github.com:iamport/gitbook.git
+[submodule "gitbook-eng"]
+	path = gitbook-eng
+	url = git@github.com:iamport/gitbook-eng.git
