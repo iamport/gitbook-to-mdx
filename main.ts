@@ -1,0 +1,47 @@
+import { ensureDir } from "https://deno.land/std@0.185.0/fs/ensure_dir.ts";
+import { walk, WalkEntry } from "https://deno.land/std@0.185.0/fs/walk.ts";
+import * as path from "https://deno.land/std@0.185.0/path/mod.ts";
+
+import { convert, Lang } from "./convert.ts";
+
+await job(
+  "ko",
+  walk("./gitbook", {
+    exts: ["md"],
+    skip: [/\.gitbook/],
+    includeDirs: false,
+  }),
+  5,
+);
+await job(
+  "en",
+  walk("./gitbook-eng", {
+    exts: ["md"],
+    skip: [/\.gitbook/],
+    includeDirs: false,
+  }),
+  5,
+);
+
+async function job(
+  lang: Lang,
+  mds: AsyncIterable<WalkEntry>,
+  n: number = Infinity,
+) {
+  for await (const item of take(n, mds)) {
+    const md = await Deno.readTextFile(item.path);
+    const inPath = path.relative("./gitbook", item.path);
+    const convertResult = convert({ path: inPath, lang, md });
+    const outPath = path.resolve("./dist", lang, convertResult.path);
+    await ensureDir(outPath);
+    await Deno.writeTextFile(outPath, convertResult.mdx);
+  }
+}
+
+async function* take<T>(n: number, items: AsyncIterable<T>): AsyncGenerator<T> {
+  if (n < 1) return;
+  for await (const item of items) {
+    yield item;
+    if (--n < 1) break;
+  }
+}
