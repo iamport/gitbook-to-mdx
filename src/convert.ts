@@ -1,3 +1,4 @@
+import { createImportInfo, writeImports } from "./import-writer.ts";
 import { convertPath, removeExt } from "./path-converter.ts";
 
 export type Lang = "ko" | "en";
@@ -13,20 +14,27 @@ export interface ConvertResult {
 }
 export function convert(config: ConvertConfig): ConvertResult {
   const path = convertPath(removeExt(config.path)) + ".mdx";
+  const importInfo = createImportInfo();
   let frontmatter = "";
   let content = config.md;
   cutFrontmatter: {
-    const cfr = cutFrontmatter(content);
-    frontmatter = cfr.frontmatter;
-    content = cfr.content;
+    const result = cutFrontmatter(content);
+    frontmatter = result.frontmatter;
+    content = result.content;
   }
   cutTitle: {
-    const ctr = cutTitle(content);
-    const { emoji, title } = ctr;
+    const result = cutTitle(content);
+    const { emoji, title } = result;
     frontmatter = `emoji: ${emoji}\ntitle: ${title}\n${frontmatter}`;
-    content = ctr.content;
+    content = result.content;
   }
-  const mdx = `---\n${frontmatter}\n---\n${content}`;
+  convertTabs: {
+    const result = convertTabs(content);
+    importInfo.tabAndTabs = result.exists;
+    content = result.content;
+  }
+  const imports = writeImports(importInfo);
+  const mdx = `---\n${frontmatter}\n---\n${imports}${content}`;
   return { path, mdx };
 }
 
@@ -50,4 +58,23 @@ function cutTitle(md: string): CutTitleResult {
   const [, emoji, title] = /^\s*(\p{Extended_Pictographic}?)\s*(.*)$/u.exec(t)!;
   if (emoji) return { emoji, title, content };
   return { title, content };
+}
+
+interface ConvertTabsResult {
+  exists: boolean;
+  content: string;
+}
+function convertTabs(md: string): ConvertTabsResult {
+  let exists = false;
+  const content = md
+    .replaceAll("{% tabs %}", "<Tabs>")
+    .replaceAll("{% endtabs %}", "</Tabs>")
+    .replaceAll(
+      /\{% tab title="(.*?)" %\}/g,
+      (_, title) => {
+        exists = true;
+        return `<Tab title="${title}">`;
+      },
+    ).replaceAll("{% endtab %}", "\n</Tab>");
+  return { content, exists };
 }
