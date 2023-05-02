@@ -1,3 +1,5 @@
+import { convertPath, removeExt } from "./path-converter.ts";
+
 export type Lang = "ko" | "en";
 
 export interface ConvertConfig {
@@ -10,7 +12,8 @@ export interface ConvertResult {
   mdx: string;
 }
 export function convert(config: ConvertConfig): ConvertResult {
-  const { path, md } = config;
+  const { md } = config;
+  const path = convertPath(removeExt(config.path)) + ".mdx";
   const mdx = md;
   return { path, mdx };
 }

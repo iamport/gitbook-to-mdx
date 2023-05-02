@@ -1,39 +1,26 @@
+import { emptyDir } from "https://deno.land/std@0.185.0/fs/empty_dir.ts";
 import { ensureDir } from "https://deno.land/std@0.185.0/fs/ensure_dir.ts";
-import { walk, WalkEntry } from "https://deno.land/std@0.185.0/fs/walk.ts";
+import { walk } from "https://deno.land/std@0.185.0/fs/walk.ts";
 import * as path from "https://deno.land/std@0.185.0/path/mod.ts";
 
 import { convert, Lang } from "./convert.ts";
 
-await job(
-  "ko",
-  walk("./gitbook", {
-    exts: ["md"],
-    skip: [/\.gitbook/],
-    includeDirs: false,
-  }),
-  5,
-);
-await job(
-  "en",
-  walk("./gitbook-eng", {
-    exts: ["md"],
-    skip: [/\.gitbook/],
-    includeDirs: false,
-  }),
-  5,
-);
+await emptyDir("./dist");
+await job("ko", "./gitbook");
+await job("en", "./gitbook-eng");
 
-async function job(
-  lang: Lang,
-  mds: AsyncIterable<WalkEntry>,
-  n: number = Infinity,
-) {
+async function job(lang: Lang, dir: string, n: number = Infinity) {
+  const mds = walk(dir, {
+    exts: ["md"],
+    skip: [/\.gitbook/],
+    includeDirs: false,
+  });
   for await (const item of take(n, mds)) {
     const md = await Deno.readTextFile(item.path);
-    const inPath = path.relative("./gitbook", item.path);
+    const inPath = path.relative(dir, item.path);
     const convertResult = convert({ path: inPath, lang, md });
     const outPath = path.resolve("./dist", lang, convertResult.path);
-    await ensureDir(outPath);
+    await ensureDir(path.dirname(outPath));
     await Deno.writeTextFile(outPath, convertResult.mdx);
   }
 }
