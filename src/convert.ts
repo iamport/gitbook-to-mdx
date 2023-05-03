@@ -35,6 +35,9 @@ export function convert(config: ConvertConfig): ConvertResult {
     }
     content = result.content;
   }
+  convertCode: {
+    content = convertCode(content);
+  }
   convertHint: {
     const result = convertHint(content);
     importInfo.hint = result.exists;
@@ -60,8 +63,9 @@ interface CutFrontmatterResult {
   content: string;
 }
 function cutFrontmatter(md: string): CutFrontmatterResult {
-  const [, frontmatter, content] =
-    /^---\r?\n((?:.|\r|\n)+?)\r?\n---\r?\n((?:.|\r|\n)*)$/.exec(md)!;
+  const r = /^---\r?\n((?:.|\r|\n)+?)\r?\n---\r?\n((?:.|\r|\n)*)$/.exec(md);
+  if (!r) return { frontmatter: "", content: md };
+  const [, frontmatter, content] = r;
   return { frontmatter, content };
 }
 
@@ -71,9 +75,24 @@ interface CutTitleResult {
   content: string;
 }
 function cutTitle(md: string): CutTitleResult {
-  const [, t, content] = /^\s*#(.+)\r?\n((?:.|\r|\n)*)$/.exec(md)!;
+  const [, t, content] = /^\s*#(.+)\r?\n?((?:.|\r|\n)*)$/.exec(md)!;
   const [, emoji, title] = /^\s*(\p{Extended_Pictographic}?)\s*(.*)$/u.exec(t)!;
   return { emoji, title, content };
+}
+
+function convertCode(md: string): string {
+  return md
+    .replaceAll(
+      /\{% code(?: title="(.*?)")?( lineNumbers="true")? %\}\s+```(.*)/g,
+      (_, title, lineNumbers, lang) => {
+        if (title && lineNumbers) {
+          return "```" + `${lang} title="${title}" showLineNumbers`;
+        }
+        if (title) return "```" + `${lang} title="${title}"`;
+        if (lineNumbers) return "```" + `${lang} showLineNumbers`;
+        return "```" + lang;
+      },
+    ).replaceAll("{% endcode %}", "");
 }
 
 interface ConvertHintResult {

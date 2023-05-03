@@ -6,7 +6,7 @@ import * as path from "https://deno.land/std@0.185.0/path/mod.ts";
 import { convert, Lang } from "./convert.ts";
 
 await emptyDir("./dist");
-await job("ko", "./gitbook", 30);
+await job("ko", "./gitbook");
 // await job("en", "./gitbook-eng", 10);
 
 async function job(lang: Lang, dir: string, n: number = Infinity) {
@@ -16,6 +16,7 @@ async function job(lang: Lang, dir: string, n: number = Infinity) {
     includeDirs: false,
   });
   for await (const item of take(n, mds)) {
+    console.log(item.path);
     const md = await Deno.readTextFile(item.path);
     const inPath = path.relative(dir, item.path);
     const convertResult = convert({ path: inPath, lang, md });
