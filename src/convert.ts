@@ -28,7 +28,11 @@ export function convert(config: ConvertConfig): ConvertResult {
   cutTitle: {
     const result = cutTitle(content);
     const { emoji, title } = result;
-    frontmatter = `emoji: ${emoji}\ntitle: ${title}\n${frontmatter}`;
+    if (emoji) {
+      frontmatter = `emoji: ${emoji}\ntitle: ${title}\n${frontmatter}`;
+    } else {
+      frontmatter = `title: ${title}\n${frontmatter}`;
+    }
     content = result.content;
   }
   convertHint: {
@@ -62,15 +66,14 @@ function cutFrontmatter(md: string): CutFrontmatterResult {
 }
 
 interface CutTitleResult {
-  emoji?: string;
+  emoji: string;
   title: string;
   content: string;
 }
 function cutTitle(md: string): CutTitleResult {
   const [, t, content] = /^\s*#(.+)\r?\n((?:.|\r|\n)*)$/.exec(md)!;
   const [, emoji, title] = /^\s*(\p{Extended_Pictographic}?)\s*(.*)$/u.exec(t)!;
-  if (emoji) return { emoji, title, content };
-  return { title, content };
+  return { emoji, title, content };
 }
 
 interface ConvertHintResult {
