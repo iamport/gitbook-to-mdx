@@ -17,6 +17,9 @@ export function convert(config: ConvertConfig): ConvertResult {
   const importInfo = createImportInfo();
   let frontmatter = "";
   let content = config.md;
+  removeGroupSeparator: {
+    content = removeGroupSeparator(content);
+  }
   cutFrontmatter: {
     const result = cutFrontmatter(content);
     frontmatter = result.frontmatter;
@@ -41,6 +44,11 @@ export function convert(config: ConvertConfig): ConvertResult {
   const imports = writeImports(importInfo);
   const mdx = `---\n${frontmatter}\n---\n${imports}${content}`;
   return { path, mdx };
+}
+
+// 망할 맥OS 한글입력 버그
+function removeGroupSeparator(md: string): string {
+  return md.replaceAll("\x1d", "");
 }
 
 interface CutFrontmatterResult {
