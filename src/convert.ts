@@ -28,6 +28,11 @@ export function convert(config: ConvertConfig): ConvertResult {
     frontmatter = `emoji: ${emoji}\ntitle: ${title}\n${frontmatter}`;
     content = result.content;
   }
+  convertHint: {
+    const result = convertHint(content);
+    importInfo.hint = result.exists;
+    content = result.content;
+  }
   convertTabs: {
     const result = convertTabs(content);
     importInfo.tabAndTabs = result.exists;
@@ -58,6 +63,23 @@ function cutTitle(md: string): CutTitleResult {
   const [, emoji, title] = /^\s*(\p{Extended_Pictographic}?)\s*(.*)$/u.exec(t)!;
   if (emoji) return { emoji, title, content };
   return { title, content };
+}
+
+interface ConvertHintResult {
+  exists: boolean;
+  content: string;
+}
+function convertHint(md: string): ConvertHintResult {
+  let exists = false;
+  const content = md
+    .replaceAll(
+      /\{% hint style="(.*?)" %\}/g,
+      (_, style) => {
+        exists = true;
+        return `<Hint style="${style}">`;
+      },
+    ).replaceAll("{% endhint %}", "\n</Hint>");
+  return { content, exists };
 }
 
 interface ConvertTabsResult {
