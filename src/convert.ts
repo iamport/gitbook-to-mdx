@@ -43,6 +43,11 @@ export function convert(config: ConvertConfig): ConvertResult {
     importInfo.codepen = result.exists;
     content = result.content;
   }
+  convertContentRef: {
+    const result = convertContentRef(content, config.lang);
+    importInfo.contentRef = result.exists;
+    content = result.content;
+  }
   convertHint: {
     const result = convertHint(content);
     importInfo.hint = result.exists;
@@ -130,6 +135,20 @@ function convertCodepen(md: string): ResultWithExistence {
       (_, user, slug) => {
         exists = true;
         return `<Codepen user="${user}" slug="${slug}" />`;
+      },
+    );
+  return { content, exists };
+}
+
+function convertContentRef(md: string, lang: string): ResultWithExistence {
+  let exists = false;
+  const content = md
+    .replaceAll(
+      /\{% content-ref url="(.*?)(?:\.md)?" %\}((?:.|\r|\n)*?)\{% endcontent-ref %\}/g,
+      (_, url: string) => {
+        exists = true;
+        if (url.endsWith("/")) url = url + "readme";
+        return `<ContentRef slug="/${lang}/${convertPath(url)}" />`;
       },
     );
   return { content, exists };

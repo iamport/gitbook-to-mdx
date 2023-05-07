@@ -1,6 +1,7 @@
 export function createImportInfo(): ImportInfo {
   return {
     codepen: false,
+    contentRef: false,
     hint: false,
     swagger: false,
     tabAndTabs: false,
@@ -9,6 +10,7 @@ export function createImportInfo(): ImportInfo {
 }
 export interface ImportInfo {
   codepen: boolean;
+  contentRef: boolean;
   hint: boolean;
   swagger: boolean;
   tabAndTabs: boolean;
@@ -21,6 +23,11 @@ export function writeImports(info: ImportInfo): string {
   ];
   if (info.codepen) {
     result.push(`import Codepen from "~/components/gitbook/Codepen.astro";\n`);
+  }
+  if (info.contentRef) {
+    result.push(
+      `import ContentRef from "~/components/gitbook/ContentRef.astro";\n`,
+    );
   }
   if (info.hint) {
     result.push(`import Hint from "~/components/gitbook/Hint";\n`);
