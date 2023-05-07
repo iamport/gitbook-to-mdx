@@ -1,3 +1,5 @@
+import { stringify } from "https://deno.land/std@0.185.0/yaml/mod.ts";
+
 import { createImportInfo, writeImports } from "./import-writer.ts";
 import { convertPath, removeExt } from "./path-converter.ts";
 
@@ -13,7 +15,11 @@ export interface ConvertResult {
   mdx: string;
 }
 export function convert(config: ConvertConfig): ConvertResult {
-  const path = convertPath(removeExt(config.path)) + ".mdx";
+  const pathWithoutExt = convertPath(removeExt(config.path));
+  if (pathWithoutExt === "summary") {
+    return { path: "./_nav.yaml", mdx: convertSummary(config) };
+  }
+  const path = pathWithoutExt + ".mdx";
   const importInfo = createImportInfo();
   let frontmatter = "";
   let content = config.md;
@@ -71,6 +77,57 @@ export function convert(config: ConvertConfig): ConvertResult {
   const imports = writeImports(importInfo);
   const mdx = `---\n${frontmatter}\n---\n${imports}${content}`;
   return { path, mdx };
+}
+
+function convertSummary(config: ConvertConfig): string {
+  let content = config.md;
+  content = removeSeparators(content);
+  content = content.replace(/^# .+(?:\r|\n)*/, ""); // remove title
+  const yaml: any[] = [];
+  for (
+    const [title, list] of chunk(
+      content.split(/\r?\n(?:\r?\n)+/).filter(Boolean),
+      2,
+    )
+  ) {
+    const group: any = {
+      label: title === "***" ? "" : title.replace(/^#*\s*/, ""),
+      items: [],
+    };
+    const itemsStack: { indent: number; items: any[] }[] = [
+      { indent: -1, items: group.items },
+    ];
+    const getParent = () => itemsStack[itemsStack.length - 1];
+    for (const line of list.split(/\r?\n/)) {
+      const item = {
+        slug: `/${config.lang}/${
+          convertPath(line.replace(
+            /^\s*\*\s*\[.*?\]\((?:\<(.*?)(?:\.md)?\>|(.*?)(?:\.md)?)\)/,
+            "$1$2",
+          ))
+        }`,
+        items: [],
+      };
+      const currentIndentLevel = line.replace(/^(\s*).*$/, "$1").length;
+      while (getParent().indent >= currentIndentLevel) itemsStack.pop();
+      getParent().items.push(item);
+      itemsStack.push({ indent: currentIndentLevel, items: item.items });
+    }
+    const itemsQueue = [group.items];
+    let currItems: any[];
+    while (currItems = itemsQueue.shift()) {
+      for (let i = 0; i < currItems.length; ++i) {
+        const item = currItems[i];
+        if (item.items.length > 0) {
+          itemsQueue.push(item.items);
+        } else {
+          currItems[i] = item.slug;
+        }
+      }
+    }
+    yaml.push(group);
+  }
+  return stringify(yaml as any);
 }
 
 // 망할 맥OS 한글입력 버그
@@ -249,4 +306,11 @@ function convertYoutube(md: string): ResultWithExistence {
       },
     );
   return { content, exists };
+}
+
+function chunk<T>(array: T[], num: number): T[][] {
+  return array.reduce((subarr, item, i) => {
+    (subarr[(i / num) | 0] ??= []).push(item);
+    return subarr;
+  }, [] as T[][]);
 }
