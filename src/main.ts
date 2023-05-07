@@ -7,7 +7,7 @@ import { convert, Lang } from "./convert.ts";
 
 await emptyDir("./dist");
 await job("ko", "./gitbook");
-// await job("en", "./gitbook-eng", 10);
+await job("en", "./gitbook-eng");
 
 async function job(lang: Lang, dir: string, n: number = Infinity) {
   const mds = walk(dir, {
