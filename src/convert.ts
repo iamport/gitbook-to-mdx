@@ -38,6 +38,11 @@ export function convert(config: ConvertConfig): ConvertResult {
   convertCode: {
     content = convertCode(content);
   }
+  convertCodepen: {
+    const result = convertCodepen(content);
+    importInfo.codepen = result.exists;
+    content = result.content;
+  }
   convertHint: {
     const result = convertHint(content);
     importInfo.hint = result.exists;
@@ -51,6 +56,11 @@ export function convert(config: ConvertConfig): ConvertResult {
   convertTabs: {
     const result = convertTabs(content);
     importInfo.tabAndTabs = result.exists;
+    content = result.content;
+  }
+  convertYoutube: {
+    const result = convertYoutube(content);
+    importInfo.youtube = result.exists;
     content = result.content;
   }
   const imports = writeImports(importInfo);
@@ -85,6 +95,11 @@ function cutTitle(md: string): CutTitleResult {
   return { emoji, title, content };
 }
 
+interface ResultWithExistence {
+  exists: boolean;
+  content: string;
+}
+
 function convertCode(md: string): string {
   return md
     .replaceAll(
@@ -100,11 +115,27 @@ function convertCode(md: string): string {
     ).replaceAll("{% endcode %}", "");
 }
 
-interface ConvertHintResult {
-  exists: boolean;
-  content: string;
+function convertCodepen(md: string): ResultWithExistence {
+  let exists = false;
+  const content = md
+    .replaceAll(
+      /\{% embed url="https:\/\/codepen.io\/(.*?)\/pen\/(.*?)" %\}((?:.|\r|\n)*?)\{% endembed %\}/g,
+      (_, user, slug, caption) => {
+        exists = true;
+        return `<Codepen user="${user}" slug="${slug}" caption="${caption.trim()}" />`;
+      },
+    )
+    .replaceAll(
+      /\{% embed url="https:\/\/codepen.io\/(.*?)\/pen\/(.*?)" %\}/g,
+      (_, user, slug) => {
+        exists = true;
+        return `<Codepen user="${user}" slug="${slug}" />`;
+      },
+    );
+  return { content, exists };
 }
-function convertHint(md: string): ConvertHintResult {
+
+function convertHint(md: string): ResultWithExistence {
   let exists = false;
   const content = md
     .replaceAll(
@@ -117,11 +148,7 @@ function convertHint(md: string): ConvertHintResult {
   return { content, exists };
 }
 
-interface ConvertSwaggerResult {
-  exists: boolean;
-  content: string;
-}
-function convertSwagger(md: string): ConvertSwaggerResult {
+function convertSwagger(md: string): ResultWithExistence {
   let exists = false;
   const content = md
     .replaceAll(
@@ -177,11 +204,7 @@ function convertSwagger(md: string): ConvertSwaggerResult {
   return { content, exists };
 }
 
-interface ConvertTabsResult {
-  exists: boolean;
-  content: string;
-}
-function convertTabs(md: string): ConvertTabsResult {
+function convertTabs(md: string): ResultWithExistence {
   let exists = false;
   const content = md
     .replaceAll("{% tabs %}", "<Tabs>")
@@ -193,5 +216,18 @@ function convertTabs(md: string): ConvertTabsResult {
         return `<Tab title="${title}">`;
       },
     ).replaceAll("{% endtab %}", "\n</Tab>");
+  return { content, exists };
+}
+
+function convertYoutube(md: string): ResultWithExistence {
+  let exists = false;
+  const content = md
+    .replaceAll(
+      /\{% embed url="https:\/\/youtu.be\/(.*?)" %\}((?:.|\r|\n)*?)\{% endembed %\}/g,
+      (_, videoId, caption) => {
+        exists = true;
+        return `<Youtube videoId="${videoId}" caption="${caption.trim()}" />`;
+      },
+    );
   return { content, exists };
 }
