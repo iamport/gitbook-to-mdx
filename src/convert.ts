@@ -43,6 +43,11 @@ export function convert(config: ConvertConfig): ConvertResult {
     importInfo.hint = result.exists;
     content = result.content;
   }
+  convertSwagger: {
+    const result = convertSwagger(content);
+    importInfo.swagger = result.exists;
+    content = result.content;
+  }
   convertTabs: {
     const result = convertTabs(content);
     importInfo.tabAndTabs = result.exists;
@@ -109,6 +114,66 @@ function convertHint(md: string): ConvertHintResult {
         return `<Hint style="${style}">`;
       },
     ).replaceAll("{% endhint %}", "\n</Hint>");
+  return { content, exists };
+}
+
+interface ConvertSwaggerResult {
+  exists: boolean;
+  content: string;
+}
+function convertSwagger(md: string): ConvertSwaggerResult {
+  let exists = false;
+  const content = md
+    .replaceAll(
+      /\{% swagger (.*?) %\}((.|\r|\n)*?)\{% endswagger %\}/g,
+      (_, props: string, content: string) => {
+        exists = true;
+        return `<Swagger ${props}>${
+          content
+            .replaceAll("{% swagger-description %}", "<SwaggerDescription>")
+            .replace(
+              /\{% swagger-parameter (?:.|\r|\n)+ endswagger-parameter %\}/,
+              (content) => {
+                interface SwaggerParameter {
+                  props: string;
+                  content: string;
+                }
+                const groups: { [type: string]: SwaggerParameter[] } = {};
+                for (
+                  const [_, a, b, c] of content.matchAll(
+                    /\{% swagger-parameter in="([^"]*?)" (.*?) %}((?:.|\r|\n)+?)\{% endswagger-parameter %\}/g,
+                  )
+                ) (groups[a] ??= []).push({ props: b, content: c });
+                return `### Parameters\n\n${
+                  Object.entries(groups).map(
+                    ([k, group]) =>
+                      `#### ${k[0].toUpperCase()}${k.slice(1)}\n\n${
+                        group.map(({ props, content }) =>
+                          `<SwaggerParameter ${props}>${content}\n</SwaggerParameter>\n`
+                        )
+                      }`,
+                  ).join("")
+                }`;
+              },
+            )
+            .replace(
+              /\{% swagger-response (?:.|\r|\n)+ endswagger-response %\}/,
+              (content) =>
+                `### Responses\n\n${
+                  content.replaceAll(
+                    /\{% swagger-response (.*?) %\}((.|\r|\n)*?)\{% endswagger-response %\}/g,
+                    (_, props, content) =>
+                      `<SwaggerResponse ${props}>${content}\n</SwaggerResponse>`,
+                  )
+                }`,
+            )
+            .replaceAll(
+              "{% endswagger-description %}",
+              "\n</SwaggerDescription>",
+            )
+        }\n</Swagger>`;
+      },
+    );
   return { content, exists };
 }
 
