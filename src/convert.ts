@@ -29,6 +29,9 @@ export function convert(config: ConvertConfig): ConvertResult {
   sanitizeSelfClosingImg: {
     content = sanitizeSelfClosingImg(content);
   }
+  replaceAssetPath: {
+    content = replaceAssetPath(content, config.lang);
+  }
   cutFrontmatter: {
     const result = cutFrontmatter(content);
     frontmatter = result.frontmatter;
@@ -174,6 +177,30 @@ function removeSeparators(md: string): string {
 
 function sanitizeSelfClosingImg(md: string): string {
   return md.replaceAll(/<img(.*?[^/])>/g, "<img$1/>");
+}
+
+function replaceAssetPath(md: string, lang: string): string {
+  return md
+    .replaceAll(/src="(.*?)"/g, (_, src: string) => {
+      if (!isGitbookAssetsPath(src)) return _;
+      return `src="${toNewPath(src)}"`;
+    })
+    .replaceAll(/!\[(.*?)\]\(<(.*?)>\)/g, (_, $1: string, $2: string) => {
+      if (!isGitbookAssetsPath($2)) return _;
+      return `![${$1}](<${toNewPath($2)}>)`;
+    })
+    .replaceAll(/!\[(.*?)\]\((.*?)\)/g, (_, $1: string, $2: string) => {
+      if (!isGitbookAssetsPath($2)) return _;
+      return `![${$1}](<${toNewPath($2)}>)`;
+    });
+  function isGitbookAssetsPath(path: string): boolean {
+    return path.includes(".gitbook/assets");
+  }
+  function toNewPath(path: string): string {
+    return `/gitbook-assets/${lang}/${
+      path.replace(/^.*?\.gitbook\/assets\/(.*)$/, "$1")
+    }`;
+  }
 }
 
 interface CutFrontmatterResult {
