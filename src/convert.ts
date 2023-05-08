@@ -26,6 +26,9 @@ export function convert(config: ConvertConfig): ConvertResult {
   removeSeparators: {
     content = removeSeparators(content);
   }
+  sanitizeSelfClosingImg: {
+    content = sanitizeSelfClosingImg(content);
+  }
   cutFrontmatter: {
     const result = cutFrontmatter(content);
     frontmatter = result.frontmatter;
@@ -167,6 +170,10 @@ function convertSummary(config: ConvertConfig): string {
 // 망할 맥OS 한글입력 버그
 function removeSeparators(md: string): string {
   return md.replaceAll("\x1d", "").replaceAll("\b", "");
+}
+
+function sanitizeSelfClosingImg(md: string): string {
+  return md.replaceAll(/<img(.*?[^/])>/g, "<img$1/>");
 }
 
 interface CutFrontmatterResult {

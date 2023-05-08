@@ -5,6 +5,9 @@ export function removeExt(pathWithExt: string): string {
 export function convertPath(pathWithoutExt: string): string {
   return pathWithoutExt
     .split("/").filter(Boolean)
-    .map((c) => c.split(/[() .-]/g).filter(Boolean).join("-").toLowerCase())
+    .map((c) =>
+      c.replace("\\_", "_").toLowerCase()
+        .split(/[() .-]/g).filter(Boolean).join("-")
+    )
     .join("/");
 }
