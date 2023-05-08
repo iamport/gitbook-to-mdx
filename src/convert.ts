@@ -54,6 +54,11 @@ export function convert(config: ConvertConfig): ConvertResult {
     importInfo.contentRef = result.exists;
     content = result.content;
   }
+  convertDetails: {
+    const result = convertDetails(content);
+    importInfo.details = result.exists;
+    content = result.content;
+  }
   convertHint: {
     const result = convertHint(content);
     importInfo.hint = result.exists;
@@ -82,16 +87,36 @@ export function convert(config: ConvertConfig): ConvertResult {
 function convertSummary(config: ConvertConfig): string {
   let content = config.md;
   content = removeSeparators(content);
-  content = content.replace(/^# .+(?:\r|\n)*/, ""); // remove title
-  const yaml: any[] = [];
-  for (
-    const [title, list] of chunk(
-      content.split(/\r?\n(?:\r?\n)+/).filter(Boolean),
-      2,
-    )
-  ) {
-    const group: any = {
-      label: title === "***" ? "" : title.replace(/^#*\s*/, ""),
+  content = content.replace(/^# .+(?:\r|\n)*/, "***\n\n");
+  const titleAndLists = (() => {
+    const result: string[] = [];
+    const titleBuffer: string[] = [];
+    for (const i of content.split(/\r?\n(?:\r?\n)+/).filter(Boolean)) {
+      const isTitle = i.startsWith("#") || i.startsWith("***");
+      if (isTitle) {
+        titleBuffer.push(
+          (i === "***" ? "" : i.replace(/^#*\s*/, ""))
+            .replace(/<a.*?>.*?<\/a>/, "")
+            .trim(),
+        );
+      } else {
+        if (titleBuffer.length > 0) {
+          result.push(titleBuffer.pop()!);
+          titleBuffer.length = 0;
+        }
+        result.push(i);
+      }
+    }
+    return result;
+  })();
+  interface Group {
+    label: string;
+    items: any[];
+  }
+  const groups: Group[] = [];
+  for (const [title, list] of chunk(titleAndLists, 2)) {
+    const group: Group = {
+      label: title,
       items: [],
     };
     const itemsStack: { indent: number; items: any[] }[] = [
@@ -115,7 +140,7 @@ function convertSummary(config: ConvertConfig): string {
     }
     const itemsQueue = [group.items];
     let currItems: any[];
-    while (currItems = itemsQueue.shift()) {
+    while (currItems = itemsQueue.shift()!) {
       for (let i = 0; i < currItems.length; ++i) {
         const item = currItems[i];
         if (item.items.length > 0) {
@@ -125,9 +150,18 @@ function convertSummary(config: ConvertConfig): string {
         }
       }
     }
-    yaml.push(group);
+    groups.push(group);
   }
-  return stringify(yaml as any);
+  const yaml: any = [];
+  for (const group of groups) {
+    if (group.label) {
+      yaml.push(group);
+      continue;
+    }
+    if (yaml.length) yaml.push("===");
+    yaml.push(...group.items);
+  }
+  return stringify(yaml);
 }
 
 // 망할 맥OS 한글입력 버그
@@ -197,6 +231,19 @@ function convertCodepen(md: string): ResultWithExistence {
   return { content, exists };
 }
 
+function convertDetails(md: string): ResultWithExistence {
+  let exists = false;
+  const content = md
+    .replaceAll(
+      /<details>\s*<summary>((?:.|\r|\n)*?)<\/summary>((?:.|\r|\n)*?)<\/details>/g,
+      (_, summary, content) => {
+        exists = true;
+        return `<Details>\n<p slot="summary">${summary}</p>${content}</Details>`;
+      },
+    );
+  return { content, exists };
+}
+
 function convertContentRef(md: string, lang: string): ResultWithExistence {
   let exists = false;
   const content = md
@@ -253,7 +300,7 @@ function convertSwagger(md: string): ResultWithExistence {
                       `#### ${k[0].toUpperCase()}${k.slice(1)}\n\n${
                         group.map(({ props, content }) =>
                           `<SwaggerParameter ${props}>${content}\n</SwaggerParameter>\n`
-                        )
+                        ).join("")
                       }`,
                   ).join("")
                 }`;

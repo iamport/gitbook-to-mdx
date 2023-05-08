@@ -2,6 +2,7 @@ export function createImportInfo(): ImportInfo {
   return {
     codepen: false,
     contentRef: false,
+    details: false,
     hint: false,
     swagger: false,
     tabAndTabs: false,
@@ -11,6 +12,7 @@ export function createImportInfo(): ImportInfo {
 export interface ImportInfo {
   codepen: boolean;
   contentRef: boolean;
+  details: boolean;
   hint: boolean;
   swagger: boolean;
   tabAndTabs: boolean;
@@ -28,6 +30,9 @@ export function writeImports(info: ImportInfo): string {
     result.push(
       `import ContentRef from "~/components/gitbook/ContentRef.astro";\n`,
     );
+  }
+  if (info.details) {
+    result.push(`import Details from "~/components/gitbook/Details.astro";\n`);
   }
   if (info.hint) {
     result.push(`import Hint from "~/components/gitbook/Hint";\n`);
@@ -51,5 +56,5 @@ export function writeImports(info: ImportInfo): string {
       `import Youtube from "~/components/gitbook/Youtube.astro";\n`,
     );
   }
-  return result.join("");
+  return result.join("") + "\n";
 }
