@@ -65,6 +65,16 @@ export function convert(config: ConvertConfig): ConvertResult {
     importInfo.details = result.exists;
     content = result.content;
   }
+  convertFigure: {
+    const result = convertFigure(content);
+    importInfo.figure = result.exists;
+    content = result.content;
+  }
+  convertFile: {
+    const result = convertFile(content);
+    importInfo.file = result.exists;
+    content = result.content;
+  }
   convertHint: {
     const result = convertHint(content);
     importInfo.hint = result.exists;
@@ -265,6 +275,20 @@ function convertCodepen(md: string): ResultWithExistence {
   return { content, exists };
 }
 
+function convertContentRef(md: string, lang: string): ResultWithExistence {
+  let exists = false;
+  const content = md
+    .replaceAll(
+      /\{% content-ref url="(.*?)(?:\.md)?" %\}((?:.|\r|\n)*?)\{% endcontent-ref %\}/g,
+      (_, url: string) => {
+        exists = true;
+        if (url.endsWith("/")) url = url + "readme";
+        return `<ContentRef slug="/${lang}/${convertPath(url)}" />`;
+      },
+    );
+  return { content, exists };
+}
+
 function convertDetails(md: string): ResultWithExistence {
   let exists = false;
   const content = md
@@ -278,15 +302,32 @@ function convertDetails(md: string): ResultWithExistence {
   return { content, exists };
 }
 
-function convertContentRef(md: string, lang: string): ResultWithExistence {
+function convertFigure(md: string): ResultWithExistence {
+  let exists = false;
+  const content = md
+    .replaceAll(/!\[(.*?)\]\(<(.*?)>\)/g, (_, $1: string, $2: string) => {
+      if (!$1) return _;
+      exists = true;
+      return `<Figure src="${$2}" caption="${$1}" />`;
+    });
+  return { content, exists };
+}
+
+function convertFile(md: string): ResultWithExistence {
   let exists = false;
   const content = md
     .replaceAll(
-      /\{% content-ref url="(.*?)(?:\.md)?" %\}((?:.|\r|\n)*?)\{% endcontent-ref %\}/g,
-      (_, url: string) => {
+      /\{% file src="(.*?)" %\}((?:.|\r|\n)*?)\{% endfile %\}/g,
+      (_, src, caption) => {
         exists = true;
-        if (url.endsWith("/")) url = url + "readme";
-        return `<ContentRef slug="/${lang}/${convertPath(url)}" />`;
+        return `<File src="${src}" caption="${caption.trim()}" />`;
+      },
+    )
+    .replaceAll(
+      /\{% file src="(.*?)" %\}/g,
+      (_, src) => {
+        exists = true;
+        return `<File src="${src}" />`;
       },
     );
   return { content, exists };
